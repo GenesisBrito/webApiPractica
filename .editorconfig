@@ -1,0 +1,4 @@
+﻿[*.{cs,vb}]
+
+# IDE0046: Convertir a expresión condicional
+dotnet_style_prefer_conditional_expression_over_return = false
