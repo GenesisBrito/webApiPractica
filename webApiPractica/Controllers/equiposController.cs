@@ -1,43 +1,52 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using webApiPractica.Models;
+using Microsoft.EntityFrameworkCore;
 
-namespace webApiPractica.Properties
+namespace webApiPractica.Controllers
 {
-
     [Route("api/[controller]")]
     [ApiController]
     public class equiposController : ControllerBase
     {
         private readonly equiposContext _equiposContexto;
+
         public equiposController(equiposContext equiposContexto)
         {
             _equiposContexto = equiposContexto;
-
         }
-        /// <summary>
-        /// </summary>
-        /// <returns></returns>
-        [HttpGet]
 
+        [HttpGet]
         [Route("GetAll")]
+
         public IActionResult Get()
         {
-            List<equipos> listadoEquipo = (from e in _equiposContexto.equipos select e).ToList();
-
-            if (listadoEquipo.Count == 0)
+            var listaEquipo = (from e in _equiposContexto.equipos
+                               join m in _equiposContexto.marcas on e.marca_id equals m.id_marcas
+                               join te in _equiposContexto.tipo_equipo on e.tipo_equipo_id equals te.id_tipo_equipo
+                               select new
+                               {
+                                   e.id_equipos,
+                                   e.nombre,
+                                   e.descripcion,
+                                   e.tipo_equipo_id,
+                                   tipo_descripcion = te.descripcion,
+                                   e.marca_id,
+                                   m.nombre_marca
+                               }).ToList();
+            if (listaEquipo.Count == 0)
             {
                 return NotFound();
             }
-
-            return Ok(listadoEquipo);
-
+            return Ok(listaEquipo);
         }
-        [HttpGet]
-        [Route("GetById/{id}")]
 
-        public IActionResult Get(int id)
+        [HttpGet]
+        [Route("getbyid/{id}")]
+
+        public IActionResult GetById(int id)
         {
+
             equipos? equipo = (from e in _equiposContexto.equipos
                                where e.id_equipos == id
                                select e).FirstOrDefault();
@@ -47,16 +56,17 @@ namespace webApiPractica.Properties
                 return NotFound();
             }
             return Ok(equipo);
-
         }
-        [HttpGet]
-        [Route("Find/{filtro}")]
 
-        public IActionResult FindbyDescription(String filtro)
+        [HttpGet]
+        [Route("find/")]
+
+        public IActionResult GetByName(string filtro)
         {
-            equipos? equipo = (from e in _equiposContexto.equipos
-                               where e.descripcion.Contains(filtro)
-                               select e).FirstOrDefault();
+
+            List<equipos> equipo = (from e in _equiposContexto.equipos
+                                    where e.descripcion.Contains(filtro)
+                                    select e).ToList();
 
             if (equipo == null)
             {
@@ -66,69 +76,68 @@ namespace webApiPractica.Properties
         }
 
         [HttpPost]
-        [Route("Add")]
-
-        public IActionResult GuardarEquipo([FromBody] equipos equipo)
+        [Route("add")]
+        public IActionResult Post([FromBody] equipos equipo)
         {
-
             try
             {
+
                 _equiposContexto.equipos.Add(equipo);
                 _equiposContexto.SaveChanges();
                 return Ok(equipo);
+
             }
             catch (Exception ex)
             {
+
                 return BadRequest(ex.Message);
-
             }
-
         }
 
         [HttpPut]
-        [Route("actualizar/{id}")]
+        [Route("update/{id}")]
 
-        public IActionResult ActualizarEquipo(int id, [FromBody] equipos equipoModificar)
+        public IActionResult Actualizar(int id, [FromBody] equipos equipo_Actualizar)
         {
-            equipos? equiposActual = (from e in _equiposContexto.equipos
-                                      where e.id_equipos == id
-                                      select e).FirstOrDefault();
-            if (equiposActual == null)
-            {
-                return NotFound(id);
-            }
-
-            equiposActual.nombre = equipoModificar.nombre;
-            equiposActual.descripcion = equipoModificar.descripcion;
-            equiposActual.marca_id = equipoModificar.marca_id;
-            equiposActual.tipo_equipo_id = equipoModificar.tipo_equipo_id;
-            equiposActual.anio_compra = equipoModificar.anio_compra;
-            equiposActual.costo = equipoModificar.costo;
-
-            _equiposContexto.Entry(equiposActual).State = EntityState.Modified;
-            _equiposContexto.SaveChanges();
-            return Ok(equipoModificar);
-        }
-
-        [HttpDelete]
-        [Route("eliminar/{id}")]
-
-        public IActionResult EliminarEquipo(int id)
-        {
-
             equipos? equipo = (from e in _equiposContexto.equipos
                                where e.id_equipos == id
                                select e).FirstOrDefault();
 
-            if (equipo == null)
-                return NotFound();
+            if (equipo == null) return NotFound();
 
-            _equiposContexto.equipos.Attach(equipo);
-            _equiposContexto.equipos.Remove(equipo);
+            equipo.nombre = equipo_Actualizar.nombre;
+            equipo.descripcion = equipo_Actualizar.descripcion;
+            equipo.marca_id = equipo_Actualizar.marca_id;
+            equipo.tipo_equipo_id = equipo_Actualizar.tipo_equipo_id;
+            equipo.anio_compra = equipo_Actualizar.anio_compra;
+            equipo.costo = equipo_Actualizar.costo;
+
+            _equiposContexto.Entry(equipo).State = EntityState.Modified;
+            _equiposContexto.SaveChanges();
+
+            return Ok(equipo_Actualizar);
+        }
+
+        [HttpPut]
+        [Route("Eliminar/{id}")]
+
+        public IActionResult Delete(int id)
+        {
+            equipos? equipo = (from e in _equiposContexto.equipos
+                               where e.id_equipos == id
+                               select e).FirstOrDefault();
+
+            if (equipo == null) return NotFound();
+
+            equipo.estado = "I";
+
+            _equiposContexto.Entry(equipo).State = EntityState.Modified;
             _equiposContexto.SaveChanges();
 
             return Ok(equipo);
+
+
+
         }
     }
-
 }
